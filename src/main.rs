@@ -1,7 +1,11 @@
-use std::{fs::File, io::copy};
+use std::{
+	fs::File,
+	io::{copy, Read},
+};
 
 use clap::Parser;
 use github_release_downloader::models::Release;
+use indicatif::{MultiProgress, ProgressBar};
 use inquire::{MultiSelect, Select};
 
 #[derive(Parser)]
@@ -21,9 +25,22 @@ fn fetch_releases(repo: &str, token: &str) -> anyhow::Result<Vec<Release>> {
 	.into_json::<Vec<Release>>()?)
 }
 
-fn download(url: &str, filename: &str) -> anyhow::Result<()> {
-	// File::open("./")
+struct PgReader<T>(T, ProgressBar)
+where T: Read;
 
+impl<T: Read> Read for PgReader<T> {
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		let res = self.0.read(buf);
+
+		if let Ok(len) = res {
+			self.1.inc(len as u64);
+		}
+
+		res
+	}
+}
+
+fn download(url: &str, filename: &str, pg: ProgressBar) -> anyhow::Result<()> {
 	let res = ureq::get(url)
 		.set("Accept", "application/octet-stream")
 		.call()?;
@@ -34,12 +51,13 @@ fn download(url: &str, filename: &str) -> anyhow::Result<()> {
 
 	println!("{filename} len: {len}");
 
-	let mut reader = res.into_reader();
-	let mut f = File::open(filename)?;
+	let reader = res.into_reader();
+	let mut reader = PgReader(reader, pg.clone());
+	let mut f = File::create(filename)?;
 
 	copy(&mut reader, &mut f)?;
 
-	println!("{filename} done");
+	pg.finish_with_message(format!("{filename} done"));
 
 	Ok(())
 }
@@ -60,8 +78,13 @@ fn main() -> anyhow::Result<()> {
 	.with_page_size(10)
 	.prompt()?;
 
+	let mpg = MultiProgress::new();
+
 	ans.into_iter().for_each(|ass| {
-		download(&ass.url, &ass.name).unwrap();
+		let pg = ProgressBar::new(ass.size as u64);
+		mpg.add(pg.clone());
+
+		download(&ass.url, &ass.name, pg).unwrap();
 	});
 
 	Ok(())
