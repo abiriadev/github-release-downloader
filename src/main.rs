@@ -7,6 +7,7 @@ use clap::Parser;
 use github_release_downloader::models::Release;
 use indicatif::{MultiProgress, ProgressBar};
 use inquire::{MultiSelect, Select};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 #[derive(Parser)]
 struct Cli {
@@ -49,7 +50,7 @@ fn download(url: &str, filename: &str, pg: ProgressBar) -> anyhow::Result<()> {
 		.header("Content-Length")
 		.expect("content length does not exist");
 
-	println!("{filename} len: {len}");
+	pg.println(format!("{filename} len: {len}"));
 
 	let reader = res.into_reader();
 	let mut reader = PgReader(reader, pg.clone());
@@ -80,7 +81,7 @@ fn main() -> anyhow::Result<()> {
 
 	let mpg = MultiProgress::new();
 
-	ans.into_iter().for_each(|ass| {
+	ans.into_par_iter().for_each(|ass| {
 		let pg = ProgressBar::new(ass.size as u64);
 		mpg.add(pg.clone());
 
