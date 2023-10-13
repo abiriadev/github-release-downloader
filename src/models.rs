@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Release {
 	pub tarball_url: Option<String>,
 	pub zipball_url: Option<String>,
@@ -14,11 +14,10 @@ pub struct Release {
 	pub assets: Vec<ReleaseAsset>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ReleaseAsset {
 	pub url: String,
 	pub name: String,
-	pub label: Option<String>,
 	pub content_type: String,
 	pub size: u32,
 	pub download_count: u32,
