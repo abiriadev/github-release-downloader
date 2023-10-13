@@ -1,5 +1,6 @@
 use clap::Parser;
 use github_release_downloader::models::Release;
+use inquire::MultiSelect;
 
 #[derive(Parser)]
 struct Cli {
@@ -23,7 +24,19 @@ fn main() -> anyhow::Result<()> {
 
 	let res = fetch_releases(&cli.repo, &cli.token)?;
 
-	println!("{res:#?}");
+	let disp = res
+		.iter()
+		.map(|r| {
+			format!(
+				"{}",
+				r.name.as_ref().unwrap_or(&r.tag_name)
+			)
+		})
+		.collect();
+
+	let ans = MultiSelect::new("rel:", disp).prompt();
+
+	println!("{ans:#?}");
 
 	Ok(())
 }
